@@ -140,8 +140,10 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
   transition:opacity 200ms ease,transform 240ms cubic-bezier(.17,.89,.32,1.3);
 }
 .found-mark svg{width:48%;fill:none;stroke:#003865;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
-.photo-tile.is-found img{filter:saturate(.72) brightness(.78);}
-.photo-tile.is-found .found-mark{opacity:1;transform:translate(-50%,-50%) rotate(-7deg) scale(1);}
+.photo-tile.is-found:not(.has-photo) img{filter:saturate(.72) brightness(.78);}
+.photo-tile.is-found:not(.has-photo) .found-mark{opacity:1;transform:translate(-50%,-50%) rotate(-7deg) scale(1);}
+.photo-tile.has-photo .found-mark{display:none;}
+.photo-tile.has-photo .tile-shade,.photo-tile.has-photo .tile-copy{display:none;}
 
 .photo-footer{
   display:flex;justify-content:center;gap:20px;
@@ -339,8 +341,67 @@ fileInput.addEventListener("change",async()=>{
     found.add(tileIdx);
     updateProgress();
     checkWin();
+    // Offer to save the original full-res photo to the device gallery / camera roll.
+    // Must stay in the same user-gesture task for iOS Safari/WebKit, so no setTimeout wrapping.
+    offerSaveToGallery(file, CHALLENGES[tileIdx]||("tile-"+(tileIdx+1)), tileIdx);
   }catch(err){ console.error(err); alert("Couldn't read that photo — try again."); }
 });
+
+/* ---------- Save captured photo to camera roll / gallery ----------
+   iOS Safari/Chrome (WebKit) cannot silently write to the Photos app from a
+   web page. The Web Share API with files opens the native share sheet whose
+   "Save Image" action writes to Photos / the gallery, which is the closest
+   universal path. Desktop browsers fall back to a plain file download. */
+function suggestedName(label, tileIdx, file){
+  const slug = String(label||"photo").toLowerCase()
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48) || "photo";
+  const idx = String((tileIdx||0)+1).padStart(2,"0");
+  let ext = "jpg";
+  const t = (file && file.type) || "";
+  if(/png/.test(t)) ext = "png";
+  else if(/webp/.test(t)) ext = "webp";
+  else if(/heic/.test(t)) ext = "heic";
+  else if(/jpeg|jpg/.test(t)) ext = "jpg";
+  else {
+    const n = (file && file.name) || "";
+    const m = /\.([a-z0-9]{2,5})$/i.exec(n);
+    if(m) ext = m[1].toLowerCase();
+  }
+  return `last-call-bingo-${idx}-${slug}.${ext}`;
+}
+async function offerSaveToGallery(file, label, tileIdx){
+  const name = suggestedName(label, tileIdx, file);
+  // Primary: native share sheet with the file — on iOS/Android this includes "Save Image" to Photos/gallery.
+  try{
+    let named = file;
+    try{
+      if(typeof File === "function"){
+        named = new File([file], name, { type: file.type || "image/jpeg", lastModified: Date.now() });
+      }
+    }catch(_){ named = file; }
+    if(navigator.share && navigator.canShare && navigator.canShare({ files:[named] })){
+      try{
+        await navigator.share({ files:[named], title:"Last Call Bingo", text:String(label||"") });
+        return;
+      }catch(e){
+        // User cancelled or share failed; AbortError is expected on cancel. Fall through to download.
+        if(!(e && (e.name==="AbortError"||/abort/i.test(String(e.message||""))))){
+          console.warn("share failed, falling back to download", e);
+        } else { return; }
+      }
+    }
+  }catch(e){ console.warn("share path threw", e); }
+  // Fallback: trigger a plain file download so desktop browsers also "save" it.
+  try{
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.rel = "noopener";
+    a.style.position="fixed"; a.style.left="-9999px"; a.style.top="-9999px";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ try{ a.remove(); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} }, 10000);
+  }catch(e){ console.warn("download fallback failed", e); }
+}
 
 function fileToDataURL(file){
   return new Promise((res,rej)=>{
