@@ -145,6 +145,27 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.has-photo .found-mark{display:none;}
 .photo-tile.has-photo .tile-shade{background:linear-gradient(180deg,transparent 48%,rgba(0,56,101,.78) 100%);}
 .photo-tile.has-photo .tile-copy strong{text-shadow:0 1px 2px rgba(0,20,40,.55);}
+.keep-note{margin:6px 0 0;max-width:36em;color:#003865;font-size:12px;line-height:1.4;opacity:.85;}
+.tile-sheet{
+  position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:98;
+  display:none;align-items:flex-end;justify-content:center;
+  padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));
+  background:rgba(0,56,101,.5);
+}
+.tile-sheet.show{display:flex;}
+.tile-sheet-card{
+  width:min(420px,100%);padding:18px 16px 14px;
+  background:#fffbe8;border:3px solid #003865;box-shadow:8px 8px 0 #f2a900;
+}
+.tile-sheet-card h3{margin:0 0 4px;font-family:'Gabarito',sans-serif;font-size:22px;line-height:1.05;}
+.tile-sheet-card p{margin:0 0 12px;font-size:13px;line-height:1.4;}
+.tile-sheet-card button{
+  width:100%;height:48px;margin-top:8px;cursor:pointer;
+  font-family:'Gabarito',sans-serif;font-weight:700;font-size:16px;
+}
+.sheet-retake{border:0;background:#003865;color:#fffbe8;}
+.sheet-delete{border:2px solid #9b2c2c;background:#fffbe8;color:#9b2c2c;}
+.sheet-cancel{border:2px solid #003865;background:transparent;color:#003865;}
 
 .photo-footer{
   display:flex;justify-content:center;gap:20px;
@@ -219,6 +240,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
     <div class="board-heading">
       <span class="tiny-label">Your Bingo Card</span>
       <p><b id="countDone">0</b> of 25 complete</p>
+      <p class="keep-note">Photos stay on this card when you reopen it in this browser. They are not saved to your camera roll.</p>
     </div>
     <div class="photo-board" id="board"></div>
   </section>
@@ -236,8 +258,18 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
   </div>
 </div>
 
+<div class="tile-sheet" id="tileSheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="tile-sheet-card">
+    <h3 id="sheetTitle">This photo</h3>
+    <p>Retake it, or remove it from this box. Either way it stays off your camera roll.</p>
+    <button type="button" class="sheet-retake" id="sheetRetake">Retake photo</button>
+    <button type="button" class="sheet-delete" id="sheetDelete">Delete photo</button>
+    <button type="button" class="sheet-cancel" id="sheetCancel">Cancel</button>
+  </div>
+</div>
+
 <!-- hidden file input for captures (kept in-DOM and sized 1x1 so iOS allows the click) -->
-<input type="file" id="fileInput" accept="image/*" capture="environment"
+<input type="file" id="fileInput" accept="image/*"
        style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
 
 <script>
@@ -259,49 +291,128 @@ const CHALLENGES = [
 const PLACEHOLDER = "last-call-snow-globe.png";
 const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
 
-/* ---------- Storage (photos) — IndexedDB with a session fallback ---------- */
+/* ---------- Storage (photos) ----------
+   Saved on this phone, in this browser, so a refresh or a later visit
+   puts the same pictures back in the boxes. Nothing is sent to the
+   camera roll. IndexedDB holds the photos; localStorage is a backup. */
 let db=null;
-const memPhotos={};   // used if IndexedDB is unavailable (iOS private mode, locked-down WebViews, etc.)
+const memPhotos={};
+const LS_PHOTOS="lc_photos_v1";
 function openDB(){
   return new Promise((res)=>{
-    // Resolve either way; never reject. The app must boot even without IndexedDB.
     let settled=false;
     const done=()=>{ if(!settled){ settled=true; res(); } };
-    if(typeof indexedDB==="undefined"||!indexedDB){ return done(); }
+    if(typeof indexedDB==="undefined"||!indexedDB) return done();
     let r;
-    try{ r = indexedDB.open("lastcall-bingo",1); }
-    catch(e){ console.warn("IndexedDB.open threw; using session storage.",e); return done(); }
-    // Safety net in case the request stalls (seen on some locked-down WebViews).
-    const t=setTimeout(()=>{ if(!settled){ console.warn("IndexedDB.open timed out; using session storage."); done(); } },3000);
+    try{ r=indexedDB.open("lastcall-bingo",1); }
+    catch(e){ console.warn("IndexedDB.open threw",e); return done(); }
+    const t=setTimeout(()=>{ console.warn("IndexedDB.open timed out"); done(); },8000);
     r.onupgradeneeded=()=>{ try{ r.result.createObjectStore("photos"); }catch(e){ console.warn(e); } };
     r.onsuccess=()=>{ clearTimeout(t); db=r.result; done(); };
-    r.onerror=()=>{ clearTimeout(t); console.warn("IndexedDB unavailable; using session storage.",r.error); done(); };
-    r.onblocked=()=>{ clearTimeout(t); console.warn("IndexedDB blocked; using session storage."); done(); };
+    r.onerror=()=>{ clearTimeout(t); console.warn("IndexedDB unavailable",r.error); done(); };
+    r.onblocked=()=>{ clearTimeout(t); console.warn("IndexedDB blocked"); done(); };
   });
 }
-function putPhoto(id,dataUrl){
-  memPhotos[id]=dataUrl;
-  if(!db) return Promise.resolve();
+function readLocalPhotos(){
+  try{
+    const raw=localStorage.getItem(LS_PHOTOS);
+    const map=raw?JSON.parse(raw):{};
+    return map&&typeof map==="object"?map:{};
+  }catch(e){ return {}; }
+}
+function writeLocalPhoto(id,dataUrl){
+  try{
+    const map=readLocalPhotos();
+    map[String(id)]=dataUrl;
+    localStorage.setItem(LS_PHOTOS,JSON.stringify(map));
+    return true;
+  }catch(e){ console.warn("local photo backup failed",e); return false; }
+}
+function removeLocalPhoto(id){
+  try{
+    const map=readLocalPhotos();
+    delete map[String(id)];
+    localStorage.setItem(LS_PHOTOS,JSON.stringify(map));
+  }catch(e){ console.warn(e); }
+}
+function dataUrlToBlob(dataUrl){
+  const parts=String(dataUrl).split(",");
+  const mime=(/data:([^;]+)/.exec(parts[0]||"")||[])[1]||"image/jpeg";
+  const bin=atob(parts[1]||"");
+  const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+function idbPut(id,blob){
   return new Promise((res)=>{
+    if(!db) return res(false);
     try{
       const tx=db.transaction("photos","readwrite");
-      tx.objectStore("photos").put(dataUrl,id);
-      tx.oncomplete=()=>res();
-      tx.onerror=()=>{ console.warn("photo save failed",tx.error); res(); };
-      tx.onabort=()=>{ console.warn("photo save aborted"); res(); };
-    }catch(e){ console.warn("photo save threw",e); res(); }
+      const store=tx.objectStore("photos");
+      const n=Number(id);
+      if(!Number.isNaN(n)) store.delete(n);
+      store.put(blob,String(id));
+      tx.oncomplete=()=>res(true);
+      tx.onerror=()=>{ console.warn("photo save failed",tx.error); res(false); };
+      tx.onabort=()=>{ console.warn("photo save aborted"); res(false); };
+    }catch(e){ console.warn("photo save threw",e); res(false); }
   });
 }
-function getAllPhotos(){
-  if(!db) return Promise.resolve({...memPhotos});
+function idbDelete(id){
   return new Promise((res)=>{
-    const out={};
+    if(!db) return res(true);
+    try{
+      const tx=db.transaction("photos","readwrite");
+      const store=tx.objectStore("photos");
+      store.delete(String(id));
+      const n=Number(id);
+      if(!Number.isNaN(n)) store.delete(n);
+      tx.oncomplete=()=>res(true);
+      tx.onerror=()=>res(false);
+      tx.onabort=()=>res(false);
+    }catch(e){ console.warn(e); res(false); }
+  });
+}
+async function putPhoto(id,dataUrl){
+  memPhotos[String(id)]=dataUrl;
+  let blob=null;
+  try{ blob=dataUrlToBlob(dataUrl); }catch(e){ console.warn("blob encode failed",e); }
+  if(!db) await openDB();
+  const savedDb=blob?await idbPut(id,blob):false;
+  // Keep a localStorage copy only when IndexedDB could not take the photo.
+  // A full card of pictures is too big to mirror on every save.
+  let savedLocal=false;
+  if(savedDb) removeLocalPhoto(id);
+  else savedLocal=writeLocalPhoto(id,dataUrl);
+  try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  return savedDb||savedLocal;
+}
+async function deletePhoto(id){
+  delete memPhotos[String(id)];
+  removeLocalPhoto(id);
+  if(!db) await openDB();
+  return idbDelete(id);
+}
+function getAllPhotos(){
+  const merged={};
+  const local=readLocalPhotos();
+  Object.keys(local).forEach(k=>{ if(local[k]) merged[String(k)]=local[k]; });
+  Object.keys(memPhotos).forEach(k=>{ if(memPhotos[k]) merged[String(k)]=memPhotos[k]; });
+  if(!db) return Promise.resolve(merged);
+  return new Promise((res)=>{
     try{
       const tx=db.transaction("photos","readonly");
       const cur=tx.objectStore("photos").openCursor();
-      cur.onsuccess=e=>{ const c=e.target.result; if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
-      cur.onerror=()=>res(out);
-    }catch(e){ console.warn("photo read threw",e); res(out); }
+      cur.onsuccess=e=>{
+        const c=e.target.result;
+        if(c){
+          const i=parseInt(c.key,10);
+          if(!Number.isNaN(i)&&c.value) merged[String(i)]=c.value;
+          c.continue();
+        }else res(merged);
+      };
+      cur.onerror=()=>res(merged);
+    }catch(e){ console.warn("photo read threw",e); res(merged); }
   });
 }
 
@@ -320,7 +431,7 @@ function buildBoard(){
       `<span class="tile-shade"></span>`+
       `<span class="tile-copy"><small>TAKE A PHOTO WITH</small><strong>${label}</strong></span>`+
       `<span class="found-mark">${CHECK_SVG}</span>`;
-    btn.addEventListener("click",()=>capture(i));
+    btn.addEventListener("click",()=>onTileClick(i));
     board.appendChild(btn);
     tileEls[i]=btn;
   });
@@ -328,81 +439,54 @@ function buildBoard(){
 
 /* ---------- capture + resize ---------- */
 let pendingTile=null;
+let sheetTile=null;
 const fileInput=document.getElementById("fileInput");
 function capture(i){ pendingTile=i; fileInput.value=""; fileInput.click(); }
+function onTileClick(i){
+  if(found.has(i)) openTileSheet(i);
+  else capture(i);
+}
+function openTileSheet(i){
+  sheetTile=i;
+  document.getElementById("sheetTitle").textContent=CHALLENGES[i]||"This photo";
+  document.getElementById("tileSheet").classList.add("show");
+}
+function closeTileSheet(){
+  sheetTile=null;
+  document.getElementById("tileSheet").classList.remove("show");
+}
+document.getElementById("sheetCancel").addEventListener("click",closeTileSheet);
+document.getElementById("tileSheet").addEventListener("click",e=>{ if(e.target.id==="tileSheet") closeTileSheet(); });
+document.getElementById("sheetRetake").addEventListener("click",()=>{
+  const i=sheetTile;
+  closeTileSheet();
+  if(i===null||i===undefined) return;
+  capture(i);
+});
+document.getElementById("sheetDelete").addEventListener("click",async()=>{
+  const i=sheetTile;
+  closeTileSheet();
+  if(i===null||i===undefined) return;
+  const ok=await deletePhoto(i);
+  if(!ok){ alert("Couldn't remove that photo. Try again."); return; }
+  clearTilePhoto(i);
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeTileSheet(); });
 
 fileInput.addEventListener("change",async()=>{
   const file=fileInput.files&&fileInput.files[0];
   if(!file||pendingTile===null){ pendingTile=null; return; }
   const tileIdx=pendingTile; pendingTile=null;
   try{
-    const dataUrl=await resizeImage(file,1000,0.72);
-    try{ await putPhoto(tileIdx,dataUrl); }catch(e){ console.warn("persist failed",e); }
+    const dataUrl=await resizeImage(file,800,0.7);
+    const saved=await putPhoto(tileIdx,dataUrl);
     setTilePhoto(tileIdx,dataUrl);
     found.add(tileIdx);
     updateProgress();
     checkWin();
-    // Offer to save the original full-res photo to the device gallery / camera roll.
-    // Must stay in the same user-gesture task for iOS Safari/WebKit, so no setTimeout wrapping.
-    offerSaveToGallery(file, CHALLENGES[tileIdx]||("tile-"+(tileIdx+1)), tileIdx);
+    if(!saved) alert("This photo is showing now, but this browser couldn't store it. It may disappear if you refresh.");
   }catch(err){ console.error(err); alert("Couldn't read that photo — try again."); }
 });
-
-/* ---------- Save captured photo to camera roll / gallery ----------
-   iOS Safari/Chrome (WebKit) cannot silently write to the Photos app from a
-   web page. The Web Share API with files opens the native share sheet whose
-   "Save Image" action writes to Photos / the gallery, which is the closest
-   universal path. Desktop browsers fall back to a plain file download. */
-function suggestedName(label, tileIdx, file){
-  const slug = String(label||"photo").toLowerCase()
-    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48) || "photo";
-  const idx = String((tileIdx||0)+1).padStart(2,"0");
-  let ext = "jpg";
-  const t = (file && file.type) || "";
-  if(/png/.test(t)) ext = "png";
-  else if(/webp/.test(t)) ext = "webp";
-  else if(/heic/.test(t)) ext = "heic";
-  else if(/jpeg|jpg/.test(t)) ext = "jpg";
-  else {
-    const n = (file && file.name) || "";
-    const m = /\.([a-z0-9]{2,5})$/i.exec(n);
-    if(m) ext = m[1].toLowerCase();
-  }
-  return `last-call-bingo-${idx}-${slug}.${ext}`;
-}
-async function offerSaveToGallery(file, label, tileIdx){
-  const name = suggestedName(label, tileIdx, file);
-  // Primary: native share sheet with the file — on iOS/Android this includes "Save Image" to Photos/gallery.
-  try{
-    let named = file;
-    try{
-      if(typeof File === "function"){
-        named = new File([file], name, { type: file.type || "image/jpeg", lastModified: Date.now() });
-      }
-    }catch(_){ named = file; }
-    if(navigator.share && navigator.canShare && navigator.canShare({ files:[named] })){
-      try{
-        await navigator.share({ files:[named], title:"Last Call Bingo", text:String(label||"") });
-        return;
-      }catch(e){
-        // User cancelled or share failed; AbortError is expected on cancel. Fall through to download.
-        if(!(e && (e.name==="AbortError"||/abort/i.test(String(e.message||""))))){
-          console.warn("share failed, falling back to download", e);
-        } else { return; }
-      }
-    }
-  }catch(e){ console.warn("share path threw", e); }
-  // Fallback: trigger a plain file download so desktop browsers also "save" it.
-  try{
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url; a.download = name; a.rel = "noopener";
-    a.style.position="fixed"; a.style.left="-9999px"; a.style.top="-9999px";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ try{ a.remove(); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} }, 10000);
-  }catch(e){ console.warn("download fallback failed", e); }
-}
 
 function fileToDataURL(file){
   return new Promise((res,rej)=>{
@@ -434,10 +518,31 @@ async function resizeImage(file,maxEdge,quality){
   catch(e){ return original; }
 }
 
-function setTilePhoto(i,dataUrl){
+const photoUrls={};
+function photoSrc(value){
+  if(typeof Blob!=="undefined"&&value instanceof Blob){
+    return URL.createObjectURL(value);
+  }
+  return value;
+}
+function setTilePhoto(i,value){
   const t=tileEls[i];
   t.classList.add("has-photo","is-found");
-  t.querySelector("img").src=dataUrl;
+  if(photoUrls[i]){ try{ URL.revokeObjectURL(photoUrls[i]); }catch(e){} delete photoUrls[i]; }
+  const src=photoSrc(value);
+  if(typeof src==="string"&&src.indexOf("blob:")===0) photoUrls[i]=src;
+  t.querySelector("img").src=src;
+}
+function clearTilePhoto(i){
+  const t=tileEls[i];
+  if(!t) return;
+  t.classList.remove("has-photo","is-found");
+  if(photoUrls[i]){ try{ URL.revokeObjectURL(photoUrls[i]); }catch(e){} delete photoUrls[i]; }
+  t.querySelector("img").src=PLACEHOLDER;
+  found.delete(i);
+  updateProgress();
+  document.getElementById("board").classList.remove("winner");
+  document.getElementById("winScreen").classList.remove("show");
 }
 
 function updateProgress(){
@@ -558,7 +663,8 @@ async function boot(){
     const photos=await getAllPhotos();
     Object.keys(photos).forEach(k=>{
       const i=+k;
-      if(!Number.isNaN(i) && tileEls[i]) setTilePhoto(i,photos[k]);
+      if(!Number.isInteger(i)||i<0||i>24||!tileEls[i]||!photos[k]) return;
+      setTilePhoto(i,photos[k]);
       found.add(i);
     });
     updateProgress();
