@@ -22,29 +22,32 @@
   font-synthesis:none;
 }
 *{box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{margin:0;min-width:320px;min-height:100vh;background:#fffbe8;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{margin:0;min-width:320px;min-height:100vh;min-height:100svh;min-height:100dvh;background:#fffbe8;overflow-x:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
 button,a{-webkit-tap-highlight-color:transparent;}
+button{font:inherit;color:inherit;}
+input,button{-webkit-appearance:none;appearance:none;border-radius:0;}
 button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3px;}
 
 /* ---------- Splash ---------- */
 .splash{
-  position:fixed;inset:0;z-index:100;
-  display:grid;place-items:center;
+  position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:100;
+  display:-webkit-box;display:-ms-flexbox;display:flex;align-items:center;justify-content:center;
   background:#fffbe8;
-  transition:opacity 500ms ease;
+  -webkit-transition:opacity 500ms ease;transition:opacity 500ms ease;
 }
 .splash img{width:min(340px,70vw);height:auto;animation:pop-logo 700ms cubic-bezier(.17,.89,.32,1.3);}
-.splash.hide{opacity:0;pointer-events:none;}
+.splash.hide{opacity:0;pointer-events:none;visibility:hidden;}
 @keyframes pop-logo{from{opacity:0;transform:scale(.8);}}
 
 /* ---------- Name / email gate ---------- */
 .gate{
-  position:fixed;inset:0;z-index:90;
-  display:none;place-items:center;padding:24px;
-  background:rgba(0,56,101,.55);backdrop-filter:blur(4px);
+  position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:90;
+  display:none;align-items:center;justify-content:center;padding:24px;
+  background:rgba(0,56,101,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  overflow:auto;-webkit-overflow-scrolling:touch;
 }
-.gate.show{display:grid;animation:fade 300ms ease;}
+.gate.show{display:-webkit-box;display:-ms-flexbox;display:flex;animation:fade 300ms ease;}
 @keyframes fade{from{opacity:0;}}
 .gate-card{
   width:min(420px,100%);
@@ -63,9 +66,10 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
 .field label{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;}
 .field input{
-  height:46px;padding:0 14px;
+  width:100%;height:46px;padding:0 14px;
   border:2px solid #8ec9eb;background:#fff;
-  font-family:'DM Sans',sans-serif;font-size:15px;color:#003865;
+  font-family:'DM Sans',sans-serif;font-size:16px;color:#003865;
+  -webkit-appearance:none;appearance:none;border-radius:0;
 }
 .field input:focus{outline:none;border-color:#f2a900;}
 .gate-error{min-height:16px;margin:-6px 0 14px;color:#c0392b;font-size:12px;font-weight:600;}
@@ -78,7 +82,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .gate-submit:hover{transform:translateY(-2px);background:#00294a;}
 
 /* ---------- App / board ---------- */
-.photo-app{min-height:100vh;overflow:hidden;display:none;}
+.photo-app{min-height:100vh;min-height:100svh;min-height:100dvh;overflow:hidden;display:none;}
 .photo-app.show{display:block;}
 .play-area{
   display:grid;grid-template-columns:minmax(0,1fr);
@@ -107,7 +111,13 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 }
 .photo-board.winner{border-color:#f2a900;box-shadow:0 0 0 8px rgba(242,169,0,.16),0 20px 60px rgba(0,56,101,.16);}
 .photo-tile{
-  position:relative;aspect-ratio:1;overflow:hidden;border:0;background:#003865;cursor:pointer;padding:0;
+  position:relative;aspect-ratio:1/1;overflow:hidden;border:0;background:#003865;cursor:pointer;padding:0;
+  -webkit-appearance:none;appearance:none;
+}
+@supports not (aspect-ratio:1/1){
+  .photo-tile{height:0;padding-bottom:100%;}
+  .photo-tile > *{position:absolute;}
+  .photo-tile > img{top:0;left:0;right:0;bottom:0;width:100%;height:100%;}
 }
 .photo-tile img{
   width:100%;height:100%;object-fit:contain;padding:12%;background:#fffbe8;
@@ -141,10 +151,11 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 
 /* ---------- Win overlay ---------- */
 .win-screen{
-  position:fixed;inset:0;z-index:95;display:none;place-items:center;padding:24px;
-  background:rgba(0,56,101,.6);backdrop-filter:blur(4px);
+  position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:95;
+  display:none;align-items:center;justify-content:center;padding:24px;
+  background:rgba(0,56,101,.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
 }
-.win-screen.show{display:grid;}
+.win-screen.show{display:-webkit-box;display:-ms-flexbox;display:flex;}
 .win-card{
   position:relative;z-index:2;width:min(400px,100%);padding:34px 26px;
   display:flex;flex-direction:column;align-items:center;text-align:center;
@@ -158,7 +169,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .win-card .sent-note{margin-top:14px;font-size:11px;font-weight:700;}
 @keyframes win-in{from{opacity:0;transform:rotate(-12deg) scale(.4);}}
 
-#confetti{position:fixed;inset:0;z-index:96;pointer-events:none;display:none;}
+#confetti{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:96;pointer-events:none;display:none;width:100%;height:100%;}
 #confetti.show{display:block;}
 
 @media (max-width:620px){
@@ -222,8 +233,9 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
   </div>
 </div>
 
-<!-- hidden file input for captures -->
-<input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" />
+<!-- hidden file input for captures (kept in-DOM and sized 1x1 so iOS allows the click) -->
+<input type="file" id="fileInput" accept="image/*" capture="environment"
+       style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
 
 <script>
 /* ===================== CONFIG ===================== */
@@ -244,29 +256,49 @@ const CHALLENGES = [
 const PLACEHOLDER = "last-call-snow-globe.png";
 const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
 
-/* ---------- IndexedDB (photos) ---------- */
-let db;
+/* ---------- Storage (photos) — IndexedDB with a session fallback ---------- */
+let db=null;
+const memPhotos={};   // used if IndexedDB is unavailable (iOS private mode, locked-down WebViews, etc.)
 function openDB(){
-  return new Promise((res,rej)=>{
-    const r = indexedDB.open("lastcall-bingo",1);
-    r.onupgradeneeded = ()=>{ r.result.createObjectStore("photos"); };
-    r.onsuccess = ()=>{ db=r.result; res(); };
-    r.onerror = ()=>rej(r.error);
+  return new Promise((res)=>{
+    // Resolve either way; never reject. The app must boot even without IndexedDB.
+    let settled=false;
+    const done=()=>{ if(!settled){ settled=true; res(); } };
+    if(typeof indexedDB==="undefined"||!indexedDB){ return done(); }
+    let r;
+    try{ r = indexedDB.open("lastcall-bingo",1); }
+    catch(e){ console.warn("IndexedDB.open threw; using session storage.",e); return done(); }
+    // Safety net in case the request stalls (seen on some locked-down WebViews).
+    const t=setTimeout(()=>{ if(!settled){ console.warn("IndexedDB.open timed out; using session storage."); done(); } },3000);
+    r.onupgradeneeded=()=>{ try{ r.result.createObjectStore("photos"); }catch(e){ console.warn(e); } };
+    r.onsuccess=()=>{ clearTimeout(t); db=r.result; done(); };
+    r.onerror=()=>{ clearTimeout(t); console.warn("IndexedDB unavailable; using session storage.",r.error); done(); };
+    r.onblocked=()=>{ clearTimeout(t); console.warn("IndexedDB blocked; using session storage."); done(); };
   });
 }
 function putPhoto(id,dataUrl){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction("photos","readwrite");
-    tx.objectStore("photos").put(dataUrl,id);
-    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  memPhotos[id]=dataUrl;
+  if(!db) return Promise.resolve();
+  return new Promise((res)=>{
+    try{
+      const tx=db.transaction("photos","readwrite");
+      tx.objectStore("photos").put(dataUrl,id);
+      tx.oncomplete=()=>res();
+      tx.onerror=()=>{ console.warn("photo save failed",tx.error); res(); };
+      tx.onabort=()=>{ console.warn("photo save aborted"); res(); };
+    }catch(e){ console.warn("photo save threw",e); res(); }
   });
 }
 function getAllPhotos(){
+  if(!db) return Promise.resolve({...memPhotos});
   return new Promise((res)=>{
-    const out={}; const tx=db.transaction("photos","readonly");
-    const store=tx.objectStore("photos"); const cur=store.openCursor();
-    cur.onsuccess=e=>{ const c=e.target.result; if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
-    cur.onerror=()=>res(out);
+    const out={};
+    try{
+      const tx=db.transaction("photos","readonly");
+      const cur=tx.objectStore("photos").openCursor();
+      cur.onsuccess=e=>{ const c=e.target.result; if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
+      cur.onerror=()=>res(out);
+    }catch(e){ console.warn("photo read threw",e); res(out); }
   });
 }
 
@@ -297,16 +329,17 @@ const fileInput=document.getElementById("fileInput");
 function capture(i){ pendingTile=i; fileInput.value=""; fileInput.click(); }
 
 fileInput.addEventListener("change",async()=>{
-  const file=fileInput.files[0]; if(!file||pendingTile===null) return;
+  const file=fileInput.files&&fileInput.files[0];
+  if(!file||pendingTile===null){ pendingTile=null; return; }
+  const tileIdx=pendingTile; pendingTile=null;
   try{
     const dataUrl=await resizeImage(file,1000,0.72);
-    await putPhoto(pendingTile,dataUrl);
-    setTilePhoto(pendingTile,dataUrl);
-    found.add(pendingTile);
+    try{ await putPhoto(tileIdx,dataUrl); }catch(e){ console.warn("persist failed",e); }
+    setTilePhoto(tileIdx,dataUrl);
+    found.add(tileIdx);
     updateProgress();
     checkWin();
-  }catch(err){ alert("Couldn't read that photo — try again."); console.error(err); }
-  pendingTile=null;
+  }catch(err){ console.error(err); alert("Couldn't read that photo — try again."); }
 });
 
 function fileToDataURL(file){
@@ -387,11 +420,12 @@ async function sendWinnerEmail(player,when){
 
 /* ---------- confetti (self-contained) ---------- */
 function runConfetti(ms){
-  const cv=document.getElementById("confetti"); cv.classList.add("show");
-  const ctx=cv.getContext("2d");
+  const cv=document.getElementById("confetti"); if(!cv) return;
+  cv.classList.add("show");
+  const ctx=cv.getContext && cv.getContext("2d"); if(!ctx){ setTimeout(()=>cv.classList.remove("show"),ms); return; }
   const DPR=Math.min(window.devicePixelRatio||1,2);
-  function size(){ cv.width=innerWidth*DPR; cv.height=innerHeight*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
-  size(); addEventListener("resize",size);
+  function size(){ cv.width=(window.innerWidth||document.documentElement.clientWidth||320)*DPR; cv.height=(window.innerHeight||document.documentElement.clientHeight||480)*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+  size(); window.addEventListener("resize",size);
   const colors=["#003865","#f2a900","#8ec9eb","#fffbe8"];
   const N=160, parts=[];
   for(let i=0;i<N;i++) parts.push({
@@ -429,24 +463,51 @@ document.getElementById("gateForm").addEventListener("submit",e=>{
 });
 
 /* ---------- boot ---------- */
-async function boot(){
-  buildBoard();
-  await openDB();
-  const photos=await getAllPhotos();
-  Object.keys(photos).forEach(k=>{ const i=+k; setTilePhoto(i,photos[k]); found.add(i); });
-  updateProgress();
-
-  // splash 3s, then gate or board
+function revealStage(){
+  const splash=document.getElementById("splash");
+  if(splash) splash.classList.add("hide");
   setTimeout(()=>{
-    document.getElementById("splash").classList.add("hide");
-    setTimeout(()=>{
+    try{
       const p=getPlayer();
       if(p.name&&p.email){ document.getElementById("app").classList.add("show"); }
-      else { document.getElementById("gate").classList.add("show"); document.getElementById("nameInput").focus(); }
-    },500);
-  },3000);
+      else {
+        const gate=document.getElementById("gate"); if(gate) gate.classList.add("show");
+        const n=document.getElementById("nameInput");
+        // On iOS, focus() off a user gesture rarely works, but call it anyway.
+        if(n){ try{ n.focus({preventScroll:true}); }catch(_){ try{ n.focus(); }catch(__){} } }
+      }
+    }catch(e){ console.error("stage reveal failed",e); }
+  },500);
 }
-boot();
+// Independent splash timer: the UI MUST advance even if DB / photo load fails.
+let stageRevealed=false;
+function safeReveal(){ if(stageRevealed) return; stageRevealed=true; revealStage(); }
+setTimeout(safeReveal, 3000);
+// Also guarantee reveal if page finishes loading late.
+if(document.readyState==="complete") setTimeout(safeReveal, 3200);
+else window.addEventListener("load", ()=>setTimeout(safeReveal, 3200));
+// Last-ditch safety: if anything above fails, hide splash after 6s.
+setTimeout(safeReveal, 6000);
+
+async function boot(){
+  try{ buildBoard(); }catch(e){ console.error("buildBoard failed",e); }
+  try{ await openDB(); }catch(e){ console.warn("openDB failed",e); }
+  try{
+    const photos=await getAllPhotos();
+    Object.keys(photos).forEach(k=>{
+      const i=+k;
+      if(!Number.isNaN(i) && tileEls[i]) setTilePhoto(i,photos[k]);
+      found.add(i);
+    });
+    updateProgress();
+  }catch(e){ console.warn("photo restore failed",e); }
+}
+// Fire-and-forget: boot's work is optional; UI advancement is driven by the timers above.
+try{ boot().catch(e=>console.error("boot rejected",e)); }
+catch(e){ console.error("boot threw sync",e); }
+
+window.addEventListener("error",e=>{ console.warn("window error",e.message); safeReveal(); });
+window.addEventListener("unhandledrejection",e=>{ console.warn("unhandled rejection",e.reason); safeReveal(); });
 </script>
 </body>
 </html>
