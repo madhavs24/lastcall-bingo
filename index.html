@@ -240,7 +240,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
     <div class="board-heading">
       <span class="tiny-label">Your Bingo Card</span>
       <p><b id="countDone">0</b> of 25 complete</p>
-      <p class="keep-note">Photos stay on this card when you reopen it in this browser. They are not saved to your camera roll.</p>
+      <p class="keep-note">Photos stay on this card when you reopen it in this browser (they're not saved to your camera roll). Tap any photo to retake or remove it.</p>
     </div>
     <div class="photo-board" id="board"></div>
   </section>
@@ -269,7 +269,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 </div>
 
 <!-- hidden file input for captures (kept in-DOM and sized 1x1 so iOS allows the click) -->
-<input type="file" id="fileInput" accept="image/*"
+<input type="file" id="fileInput" accept="image/*" capture="environment"
        style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
 
 <script>
