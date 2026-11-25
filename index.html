@@ -126,16 +126,16 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.has-photo img{object-fit:cover;padding:0;background:#003865;}
 .photo-tile:hover img{transform:scale(1.04);}
 .tile-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,56,101,.03) 30%,rgba(0,56,101,.82) 100%);pointer-events:none;}
-.photo-tile:not(.has-photo){background:#0d4f85;}
+.photo-tile:not(.has-photo){background-color:#0d4f85;background-image:url("last-call-snow-globe.png");background-size:cover;background-position:center;background-repeat:no-repeat;}
 .photo-tile:not(.has-photo) img{opacity:0;}
-.photo-tile:not(.has-photo) .tile-shade{display:none;}
+.photo-tile:not(.has-photo) .tile-shade{display:block;background:rgba(3,22,46,.5);}
 .tile-copy{
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;padding:7px;color:#fffbe8;text-align:center;pointer-events:none;
 }
 .tile-copy small{display:none;}
-.tile-copy strong{font-family:'Gabarito',sans-serif;font-size:clamp(10px,2vw,17px);font-weight:600;line-height:1.14;}
+.tile-copy strong{font-family:'Gabarito',sans-serif;font-size:clamp(10px,2vw,17px);font-weight:600;line-height:1.14;text-shadow:0 1px 3px rgba(0,0,0,.9);}
 .found-mark{
   position:absolute;top:50%;left:50%;display:grid;
   width:clamp(34px,5vw,54px);aspect-ratio:1;place-items:center;
