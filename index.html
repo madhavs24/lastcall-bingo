@@ -376,19 +376,26 @@ function idbDelete(id){
     }catch(e){ console.warn(e); res(false); }
   });
 }
-async function putPhoto(id,dataUrl){
-  memPhotos[String(id)]=dataUrl;
-  let blob=null;
-  try{ blob=dataUrlToBlob(dataUrl); }catch(e){ console.warn("blob encode failed",e); }
+function blobToDataURL(blob){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>res(fr.result);
+    fr.onerror=()=>rej(fr.error||new Error("read failed"));
+    fr.readAsDataURL(blob);
+  });
+}
+async function putPhotoBlob(id,blob){
+  if(!(blob instanceof Blob)) return false;
+  memPhotos[String(id)]=blob;                 // in-memory cache now holds the Blob
   if(!db) await openDB();
-  const savedDb=blob?await idbPut(id,blob):false;
-  // Keep a localStorage copy only when IndexedDB could not take the photo.
-  // A full card of pictures is too big to mirror on every save.
-  let savedLocal=false;
-  if(savedDb) removeLocalPhoto(id);
-  else savedLocal=writeLocalPhoto(id,dataUrl);
+  const savedDb=await idbPut(id,blob);
+  if(savedDb){ removeLocalPhoto(id); }
+  else {
+    // IndexedDB refused — fall back to a localStorage copy (needs a data URL)
+    try{ writeLocalPhoto(id, await blobToDataURL(blob)); }catch(e){ console.warn("local backup failed",e); }
+  }
   try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
-  return savedDb||savedLocal;
+  return savedDb || (readLocalPhotos()[String(id)]!=null);
 }
 async function deletePhoto(id){
   delete memPhotos[String(id)];
@@ -480,15 +487,23 @@ fileInput.addEventListener("change",async()=>{
   const file=fileInput.files&&fileInput.files[0];
   if(!file||pendingTile===null){ pendingTile=null; return; }
   const tileIdx=pendingTile; pendingTile=null;
+  // 1) Show the photo IMMEDIATELY, straight from the file. An object URL
+  //    renders at once on iOS (HEIC included) with no canvas or data URL,
+  //    so the square fills the moment the camera closes — no refresh.
   try{
-    const dataUrl=await resizeImage(file,800,0.7);
-    const saved=await putPhoto(tileIdx,dataUrl);
-    setTilePhoto(tileIdx,dataUrl);
+    setTilePhoto(tileIdx, URL.createObjectURL(file));
     found.add(tileIdx);
     updateProgress();
     checkWin();
-    if(!saved) alert("This photo is showing now, but this browser couldn't store it. It may disappear if you refresh.");
-  }catch(err){ console.error(err); alert("Couldn't read that photo — try again."); }
+  }catch(e){ console.warn("preview failed",e); }
+  // 2) Shrink to a compact JPEG and store it so it survives a refresh, then
+  //    swap the square to the smaller copy to free the full-size image.
+  try{
+    const blob=await resizeToJpegBlob(file,1000,0.72);
+    const saved=await putPhotoBlob(tileIdx,blob);
+    try{ setTilePhoto(tileIdx,blob); }catch(e){}
+    if(!saved) alert("This photo is showing, but your phone blocked saving it, so it may disappear if you refresh.");
+  }catch(err){ console.error("store failed",err); }
 });
 
 function fileToDataURL(file){
@@ -507,18 +522,38 @@ function loadImage(src){
     img.src=src;
   });
 }
-async function resizeImage(file,maxEdge,quality){
-  const original=await fileToDataURL(file);        // works in sandboxed frames & for any format
-  let img;
-  try{ img=await loadImage(original); }
-  catch(e){ return original; }                     // undecodable (rare) -> keep original so the tile still fills
-  let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-  const scale=Math.min(1,maxEdge/Math.max(w,h));
-  w=Math.round(w*scale); h=Math.round(h*scale);
-  const c=document.createElement("canvas"); c.width=w; c.height=h;
-  c.getContext("2d").drawImage(img,0,0,w,h);
-  try{ return c.toDataURL("image/jpeg",quality); } // re-encodes HEIC/PNG to JPEG, shrinks size
-  catch(e){ return original; }
+/* Decode from the File/Blob itself (NOT a base64 data URL). iOS Safari can
+   decode & render HEIC from a Blob / object URL, but not from a HEIC data
+   URL — that mismatch is why iPhone photos only showed up after a refresh.
+   Returns a compact JPEG Blob, or the original file if it can't be decoded. */
+function resizeToJpegBlob(file,maxEdge,quality){
+  return new Promise(async (resolve)=>{
+    let src=null,W=0,H=0,bmp=null,url=null;
+    try{
+      if(typeof createImageBitmap==="function"){
+        bmp=await createImageBitmap(file);         // handles HEIC files on iOS 15+
+        src=bmp; W=bmp.width; H=bmp.height;
+      }
+    }catch(e){ bmp=null; src=null; }
+    if(!src){
+      try{
+        url=URL.createObjectURL(file);             // object URL decodes HEIC on iOS
+        src=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error("decode")); im.src=url; });
+        W=src.naturalWidth||src.width; H=src.naturalHeight||src.height;
+      }catch(e){ if(url) URL.revokeObjectURL(url); return resolve(file); } // can't decode -> store original
+    }
+    try{
+      const base=Math.max(W||maxEdge,H||maxEdge);
+      const scale=Math.min(1,maxEdge/base);
+      const w=Math.max(1,Math.round((W||maxEdge)*scale)), h=Math.max(1,Math.round((H||maxEdge)*scale));
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(src,0,0,w,h);
+      if(bmp&&bmp.close){ try{ bmp.close(); }catch(e){} }
+      if(url) URL.revokeObjectURL(url);
+      if(c.toBlob){ c.toBlob((b)=>resolve(b||file),"image/jpeg",quality); }
+      else { try{ resolve(dataUrlToBlob(c.toDataURL("image/jpeg",quality))); }catch(e){ resolve(file); } }
+    }catch(e){ if(url) URL.revokeObjectURL(url); resolve(file); }
+  });
 }
 
 const photoUrls={};
@@ -530,11 +565,13 @@ function photoSrc(value){
 }
 function setTilePhoto(i,value){
   const t=tileEls[i];
+  if(!t) return;
   t.classList.add("has-photo","is-found");
   if(photoUrls[i]){ try{ URL.revokeObjectURL(photoUrls[i]); }catch(e){} delete photoUrls[i]; }
   const src=photoSrc(value);
   if(typeof src==="string"&&src.indexOf("blob:")===0) photoUrls[i]=src;
   t.querySelector("img").src=src;
+  void t.offsetWidth;   // nudge iOS Safari to repaint the tile immediately
 }
 function clearTilePhoto(i){
   const t=tileEls[i];
