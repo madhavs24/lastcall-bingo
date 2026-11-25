@@ -126,12 +126,16 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.has-photo img{object-fit:cover;padding:0;background:#003865;}
 .photo-tile:hover img{transform:scale(1.04);}
 .tile-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,56,101,.03) 30%,rgba(0,56,101,.82) 100%);pointer-events:none;}
+.photo-tile:not(.has-photo){background:#0d4f85;}
+.photo-tile:not(.has-photo) img{opacity:0;}
+.photo-tile:not(.has-photo) .tile-shade{display:none;}
 .tile-copy{
-  position:absolute;right:8px;bottom:8px;left:8px;
-  display:flex;flex-direction:column;align-items:flex-start;color:#fffbe8;text-align:left;pointer-events:none;
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:7px;color:#fffbe8;text-align:center;pointer-events:none;
 }
-.tile-copy small{margin-bottom:2px;color:rgba(255,251,232,.7);font-size:6.5px;font-weight:700;letter-spacing:.14em;}
-.tile-copy strong{font-family:'Gabarito',sans-serif;font-size:clamp(9px,1.5vw,15px);font-weight:600;line-height:1.02;}
+.tile-copy small{display:none;}
+.tile-copy strong{font-family:'Gabarito',sans-serif;font-size:clamp(10px,2vw,17px);font-weight:600;line-height:1.14;}
 .found-mark{
   position:absolute;top:50%;left:50%;display:grid;
   width:clamp(34px,5vw,54px);aspect-ratio:1;place-items:center;
@@ -144,8 +148,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.is-found:not(.has-photo) .found-mark{opacity:1;transform:translate(-50%,-50%) rotate(-7deg) scale(1);}
 .photo-tile.has-photo .found-mark{display:none;}
 .photo-tile.has-photo .tile-shade{background:linear-gradient(180deg,transparent 48%,rgba(0,56,101,.78) 100%);}
-.photo-tile.has-photo .tile-copy strong{text-shadow:0 1px 2px rgba(0,20,40,.55);}
-.keep-note{margin:6px 0 0;max-width:36em;color:#003865;font-size:12px;line-height:1.4;opacity:.85;}
+.photo-tile.has-photo .tile-copy{inset:auto;right:6px;bottom:6px;left:6px;align-items:flex-start;justify-content:flex-end;text-align:left;padding:0;gap:0;}
+.photo-tile.has-photo .tile-copy strong{font-size:clamp(8px,1.5vw,13px);text-shadow:0 1px 2px rgba(0,20,40,.55);}
 .tile-sheet{
   position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:98;
   display:none;align-items:flex-end;justify-content:center;
@@ -199,8 +203,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 @media (max-width:620px){
   .play-area{width:calc(100% - 24px);}
   .photo-board{border-width:3px;gap:2px;}
-  .tile-copy{right:5px;bottom:5px;left:5px;}
-  .tile-copy small{display:none;}
+  .tile-copy{padding:5px;}
+  .photo-tile.has-photo .tile-copy{right:4px;bottom:4px;left:4px;}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
@@ -240,7 +244,6 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
     <div class="board-heading">
       <span class="tiny-label">Your Bingo Card</span>
       <p><b id="countDone">0</b> of 25 complete</p>
-      <p class="keep-note">Photos stay on this card when you reopen it in this browser (they're not saved to your camera roll). Tap any photo to retake or remove it.</p>
     </div>
     <div class="photo-board" id="board"></div>
   </section>
