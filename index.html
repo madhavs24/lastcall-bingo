@@ -150,13 +150,13 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.has-photo .tile-shade{background:linear-gradient(180deg,transparent 48%,rgba(0,56,101,.78) 100%);}
 .photo-tile.has-photo .tile-copy{inset:auto;right:6px;bottom:6px;left:6px;align-items:flex-start;justify-content:flex-end;text-align:left;padding:0;gap:0;}
 .photo-tile.has-photo .tile-copy strong{font-size:clamp(8px,1.5vw,13px);text-shadow:0 1px 2px rgba(0,20,40,.55);}
-/* Center square — the standout "Promotional Item" space */
+/* Center square — features the Last Call snow globe (the "Promotional Item") */
 .photo-tile.center-tile{box-shadow:inset 0 0 0 2px #003865;}
-.photo-tile.center-tile:not(.has-photo){background:#f2a900;background-image:radial-gradient(circle at 50% 32%,#ffd36b 0%,#f2a900 58%,#d98f00 100%);}
+.photo-tile.center-tile:not(.has-photo){background:#fffbe8;}
 .photo-tile.center-tile:not(.has-photo) .tile-shade{display:none;}
-.photo-tile.center-tile:not(.has-photo) .tile-copy{color:#003865;}
-.photo-tile.center-tile:not(.has-photo) .tile-copy strong{text-shadow:0 1px 0 rgba(255,255,255,.45);}
-.photo-tile.center-tile:not(.has-photo) .tile-copy::before{content:"★";font-size:13px;line-height:1;color:#003865;margin-bottom:3px;}
+.photo-tile.center-tile:not(.has-photo) img{opacity:1;object-fit:contain;object-position:center 40%;padding:5%;background:transparent;}
+.photo-tile.center-tile:not(.has-photo) .tile-copy{inset:auto;left:0;right:0;bottom:0;padding:6px 3px 2px;gap:0;color:#003865;justify-content:flex-end;align-items:center;background:linear-gradient(180deg,rgba(255,251,232,0),rgba(255,251,232,.95) 62%);}
+.photo-tile.center-tile:not(.has-photo) .tile-copy strong{font-size:clamp(6px,1.4vw,10px);line-height:1.03;text-shadow:none;}
 .tile-sheet{
   position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:98;
   display:none;align-items:flex-end;justify-content:center;
@@ -462,7 +462,7 @@ function buildBoard(){
     btn.className="photo-tile"; btn.type="button";
     if(i===12) btn.classList.add("center-tile");
     btn.innerHTML =
-      `<img src="${PLACEHOLDER}" alt="${label}" />`+
+      `<img src="${i===12?"center-globe.png":PLACEHOLDER}" alt="${label}" />`+
       `<span class="tile-shade"></span>`+
       `<span class="tile-copy"><small>TAKE A PHOTO WITH</small><strong>${label}</strong></span>`+
       `<span class="found-mark">${CHECK_SVG}</span>`;
@@ -475,7 +475,7 @@ function buildBoard(){
 /* Shrink each empty square's prompt just enough to fit, so short and very
    long prompts both show in full with no clipping, on any screen size. */
 function fitTileText(){
-  document.querySelectorAll(".photo-tile:not(.has-photo) .tile-copy").forEach(function(copy){
+  document.querySelectorAll(".photo-tile:not(.has-photo):not(.center-tile) .tile-copy").forEach(function(copy){
     const s=copy.querySelector("strong"); if(!s||!copy.clientHeight) return;
     s.style.fontSize="";
     const cs=getComputedStyle(copy);
