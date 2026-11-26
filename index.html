@@ -150,13 +150,13 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .photo-tile.has-photo .tile-shade{background:linear-gradient(180deg,transparent 48%,rgba(0,56,101,.78) 100%);}
 .photo-tile.has-photo .tile-copy{inset:auto;right:6px;bottom:6px;left:6px;align-items:flex-start;justify-content:flex-end;text-align:left;padding:0;gap:0;}
 .photo-tile.has-photo .tile-copy strong{font-size:clamp(8px,1.5vw,13px);text-shadow:0 1px 2px rgba(0,20,40,.55);}
-/* Center square — gold "Promotional Item" feature, text centered & bold */
+/* Center square — snow globe background with centered GOLD "Promotional Item" text */
 .photo-tile.center-tile{box-shadow:inset 0 0 0 2px #003865;}
-.photo-tile.center-tile:not(.has-photo){background:#f2a900;background-image:radial-gradient(circle at 50% 35%,#ffd36b 0%,#f2a900 62%,#e59c00 100%);}
+.photo-tile.center-tile:not(.has-photo){background-color:#0e2a44;background-image:url("center-globe.png");background-size:86% auto;background-position:center 44%;background-repeat:no-repeat;}
 .photo-tile.center-tile:not(.has-photo) img{opacity:0;}
-.photo-tile.center-tile:not(.has-photo) .tile-shade{display:none;}
-.photo-tile.center-tile:not(.has-photo) .tile-copy{inset:0;justify-content:center;align-items:center;text-align:center;padding:7px;background:none;color:#003865;}
-.photo-tile.center-tile:not(.has-photo) .tile-copy strong{color:#003865;font-size:clamp(9px,2vw,16px);line-height:1.12;font-weight:700;text-shadow:none;}
+.photo-tile.center-tile:not(.has-photo) .tile-shade{display:block;background:rgba(2,18,38,.42);}
+.photo-tile.center-tile:not(.has-photo) .tile-copy{inset:0;justify-content:center;align-items:center;text-align:center;padding:7px;background:none;color:#f2a900;}
+.photo-tile.center-tile:not(.has-photo) .tile-copy strong{color:#f2a900;font-size:clamp(8px,1.8vw,14px);line-height:1.12;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.85);}
 .tile-sheet{
   position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:98;
   display:none;align-items:flex-end;justify-content:center;
