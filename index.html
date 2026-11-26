@@ -282,14 +282,31 @@ const WINNER_EMAIL_SUBJECT = "Last Call Unwrapped — Bingo Winner!";
 /* ================================================= */
 
 const CHALLENGES = [
-  "A stranger","A person with old Last Call merch","A person who played a sport ONLY in high school",
-  "A Last Call Glitter Cup","A person wearing a jersey","Last Call Rootbeer",
-  "A person wearing mittens and a hat","A person wearing red & green","A person who will be graduating in '27",
-  "Someone else's gingerbread man","A ResLife Coordinator (RLC)","A group of friends who aren't yours",
-  "A person who hates pumpkin pie","with Matt Laszlo","A person who has a pet",
-  "A person who studied abroad last semester","A person wearing holiday socks","A person with the same major as you",
-  "A person you have never met before","A person holding hot chocolate","A person wearing an ugly sweater",
-  "A person who can name a holiday movie","A person from your hometown","A person wearing something gold","A new friend"
+  "Photo with someone showing off their tattoo",
+  "Photo giving someone a kiss",
+  "Photo with a Last Call DJ",
+  "Photo with someone making S'mores",
+  "Photo with a cast member in You're A Good Man Charlie Brown",
+  "Photo with someone who doesn't realize it's f**ing cold outside",
+  "Photo with someone wearing their sports team gear",
+  "Photo with someone who has studied abroad",
+  "Photo of you photobombing someone else's photo",
+  "Photo with a freshman",
+  "Photo with a senior",
+  "Photo with a group representing 5 different states",
+  "Photo with Promotional Item",
+  "Photo with someone holding two drinks at once",
+  "Photo with someone making an absurdly large hot chocolate",
+  "Photo with someone holding someone else's Beloit College ID",
+  "Photo with someone on someone else's shoulders",
+  "Photo with someone sporting a mustache / who should have shaved their mustache",
+  "Photo with a person wearing sunglasses",
+  "Photo with someone who has a piercing other than earrings",
+  "Photo with an RLC / reslife staff",
+  "Photo with an animal (real or not)",
+  "Photo with Matt Laszlo",
+  "Photo with the group playing Jenga",
+  "Photo with a president (club or Beloit)"
 ];
 const PLACEHOLDER = "last-call-snow-globe.png";
 const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
@@ -447,6 +464,22 @@ function buildBoard(){
   });
 }
 
+/* Shrink each empty square's prompt just enough to fit, so short and very
+   long prompts both show in full with no clipping, on any screen size. */
+function fitTileText(){
+  document.querySelectorAll(".photo-tile:not(.has-photo) .tile-copy").forEach(function(copy){
+    const s=copy.querySelector("strong"); if(!s||!copy.clientHeight) return;
+    s.style.fontSize="";
+    const cs=getComputedStyle(copy);
+    const avail=copy.clientHeight-(parseFloat(cs.paddingTop)||0)-(parseFloat(cs.paddingBottom)||0);
+    let fs=parseFloat(getComputedStyle(s).fontSize)||14, guard=0;
+    while(s.scrollHeight>avail && fs>7 && guard<60){ fs-=0.5; s.style.fontSize=fs+"px"; guard++; }
+  });
+}
+let __fitTimer=null;
+window.addEventListener("resize",function(){ clearTimeout(__fitTimer); __fitTimer=setTimeout(fitTileText,150); });
+if(document.fonts&&document.fonts.ready){ try{ document.fonts.ready.then(function(){ fitTileText(); }); }catch(e){} }
+
 /* ---------- capture + resize ---------- */
 let pendingTile=null;
 let sheetTile=null;
@@ -567,6 +600,7 @@ function setTilePhoto(i,value){
   const t=tileEls[i];
   if(!t) return;
   t.classList.add("has-photo","is-found");
+  const _st=t.querySelector(".tile-copy strong"); if(_st) _st.style.fontSize="";  // let the has-photo label use its own size
   if(photoUrls[i]){ try{ URL.revokeObjectURL(photoUrls[i]); }catch(e){} delete photoUrls[i]; }
   const src=photoSrc(value);
   if(typeof src==="string"&&src.indexOf("blob:")===0) photoUrls[i]=src;
@@ -581,6 +615,7 @@ function clearTilePhoto(i){
   t.querySelector("img").src=PLACEHOLDER;
   found.delete(i);
   updateProgress();
+  requestAnimationFrame(fitTileText);   // re-fit the prompt now the square is empty again
   document.getElementById("board").classList.remove("winner");
   document.getElementById("winScreen").classList.remove("show");
 }
@@ -667,6 +702,7 @@ document.getElementById("gateForm").addEventListener("submit",e=>{
   setPlayer({name,email});
   document.getElementById("gate").classList.remove("show");
   document.getElementById("app").classList.add("show");
+  requestAnimationFrame(fitTileText);
 });
 
 /* ---------- boot ---------- */
@@ -676,7 +712,7 @@ function revealStage(){
   setTimeout(()=>{
     try{
       const p=getPlayer();
-      if(p.name&&p.email){ document.getElementById("app").classList.add("show"); }
+      if(p.name&&p.email){ document.getElementById("app").classList.add("show"); requestAnimationFrame(fitTileText); }
       else {
         const gate=document.getElementById("gate"); if(gate) gate.classList.add("show");
         const n=document.getElementById("nameInput");
