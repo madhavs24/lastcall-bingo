@@ -202,6 +202,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 .win-card strong{font-family:'Gabarito',sans-serif;font-size:clamp(34px,9vw,52px);line-height:.95;margin:6px 0 10px;}
 .win-card p{margin:0;font-size:13px;line-height:1.5;}
 .win-card .sent-note{margin-top:14px;font-size:11px;font-weight:700;}
+.win-close{margin-top:16px;padding:9px 22px;border:0;background:#003865;color:#fffbe8;font-family:'Gabarito',sans-serif;font-weight:700;font-size:14px;cursor:pointer;}
+.photo-tile.bingo-line::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px #fffbe8;pointer-events:none;z-index:4;}
 @keyframes win-in{from{opacity:0;transform:rotate(-12deg) scale(.4);}}
 
 #confetti{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;z-index:96;pointer-events:none;display:none;width:100%;height:100%;}
@@ -230,7 +232,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
   <form class="gate-card" id="gateForm" novalidate>
     <span class="tiny-label">Welcome to</span>
     <h2>Last Call Unwrapped Photo Bingo</h2>
-    <p>Enter your name and Beloit email to start your card. Complete all 25 photos to win!</p>
+    <p>Enter your name and Beloit email to start your card. Get 5 in a row — across, down, or diagonally — to win!</p>
     <div class="field">
       <label for="nameInput">Your name</label>
       <input id="nameInput" type="text" autocomplete="name" placeholder="First and last name" />
@@ -261,10 +263,11 @@ button:focus-visible,a:focus-visible{outline:3px solid #f2a900;outline-offset:3p
 <canvas id="confetti"></canvas>
 <div class="win-screen" id="winScreen">
   <div class="win-card">
-    <small>YOU COMPLETED THE CARD</small>
+    <small>FIVE IN A ROW</small>
     <strong>BINGO!</strong>
     <p id="winName">Nice work!</p>
     <p class="sent-note" id="sentNote"></p>
+    <button type="button" class="win-close" id="winClose">Keep going</button>
   </div>
 </div>
 
@@ -633,24 +636,40 @@ function updateProgress(){
 }
 
 /* ---------- win ---------- */
+/* Bingo = any full line of 5: the 5 rows, 5 columns, and 2 diagonals. */
+const BINGO_LINES=[
+  [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+  [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+  [0,6,12,18,24],[4,8,12,16,20]
+];
+function getBingoLine(){
+  for(let L=0;L<BINGO_LINES.length;L++){
+    if(BINGO_LINES[L].every(function(i){return found.has(i);})) return BINGO_LINES[L];
+  }
+  return null;
+}
 function checkWin(){
-  if(found.size<25) return;
-  if(localStorage.getItem("lc_won")) return;   // only once
+  if(localStorage.getItem("lc_won")) return;   // celebrate only once
+  const line=getBingoLine();
+  if(!line) return;
   const when=new Date();
   localStorage.setItem("lc_won",when.toISOString());
   document.getElementById("board").classList.add("winner");
+  line.forEach(function(i){ if(tileEls[i]) tileEls[i].classList.add("bingo-line"); });
   runConfetti(4200);
   const player=getPlayer();
-  document.getElementById("winName").textContent=(player.name?player.name.split(" ")[0]+", ":"")+"you finished the whole card!";
-  setTimeout(()=>{ document.getElementById("winScreen").classList.add("show"); sendWinnerEmail(player,when); },1200);
+  document.getElementById("winName").textContent=(player.name?player.name.split(" ")[0]+", ":"")+"you got a bingo!";
+  setTimeout(function(){ document.getElementById("winScreen").classList.add("show"); sendWinnerEmail(player,when); },1200);
 }
+var _winClose=document.getElementById("winClose");
+if(_winClose) _winClose.addEventListener("click",function(){ document.getElementById("winScreen").classList.remove("show"); });
 
 async function sendWinnerEmail(player,when){
   const note=document.getElementById("sentNote");
   const finishedAt=when.toLocaleString("en-US",{timeZone:"America/Chicago"});
   if(!WEB3FORMS_ACCESS_KEY){
     console.log("[would send winner]",{name:player.name,email:player.email,finishedAt});
-    note.textContent="(Add a Web3Forms key to email organizers automatically.)";
+    note.textContent="";
     return;
   }
   try{
